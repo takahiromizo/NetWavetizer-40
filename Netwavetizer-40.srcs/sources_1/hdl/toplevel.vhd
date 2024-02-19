@@ -13,6 +13,7 @@ use mylib.defBusAddressMap.all;
 use mylib.defSiTCP.all;
 use mylib.defRBCP.all;
 use mylib.defMiiRstTimer.all;
+use mylib.defA9C.all;
 
 entity toplevel is
   Port (
@@ -61,7 +62,7 @@ entity toplevel is
     
     -- NIM-IO ---------------------------------------------------
     NIM_IN       : in    std_logic_vector(2 downto 1);
-    NIM_OUT      : out   std_logic
+    NIM_OUT      : out   std_logic;
     
     -- Pipeline ADC ---------------------------------------------
     -- ADC_CLK_P    : out std_logic_vector(3 downto 0);
@@ -70,9 +71,9 @@ entity toplevel is
     -- ADC_DCO_N    : in std_logic_vector(3 downto 0);
     -- ADC_FCO_P    : in std_logic_vector(3 downto 0);
     -- ADC_FCO_N    : in std_logic_vector(3 downto 0);
-    -- ADC_SCLK     : out std_logic_vector(3 downto 0);
-    -- ADC_CSB      : out std_logic_vector(3 downto 0);
-    -- ADC_SDIO     : inout std_logic_vector(3 downto 0);
+    ADC_SCLK     : out   std_logic_vector(3 downto 0);
+    ADC_CSB      : out   std_logic_vector(3 downto 0);
+    ADC_SDIO     : inout std_logic_vector(3 downto 0)
     -- ADC_OUT_P    : in std_logic_vector(31 downto 0);
     -- ADC_OUT_N    : in std_logic_vector(31 downto 0)
   );
@@ -221,6 +222,49 @@ architecture Behavioral of toplevel is
         RBCP_RD               : in  std_logic_vector(7 downto 0 )  --: Read data[7:0]
         );
   end component;
+  
+  -- LED Module ----------------------------------------------------------------------------
+  -- This module is used to check if slow control(RBCP) is possible
+  -- The purpose is to check if various parameters can be read/written after 
+  -- SiTCP communication is established during the firmware development
+  component LEDModule is
+    port(
+        rst             : in std_logic;
+        clk             : in std_logic;
+        -- Module output --
+        outLED          : out std_logic_vector(kNumLED downto 1);
+        -- Local bus --
+        addrLocalBus    : in  LocalAddressType;
+        dataLocalBusIn  : in  LocalBusInType;
+        dataLocalBusOut : out LocalBusOutType;
+        reLocalBus      : in  std_logic;
+        weLocalBus      : in  std_logic;
+        readyLocalBus   : out std_logic
+    );
+  end component;
+  
+  -- AD9637 SPI ----------------------------------------------------------------------------
+  component AD9637SPI is
+    port(
+      -- System --
+      CLK              : in    std_logic;
+      RST              : in    std_logic;
+    
+      -- Module output --
+      ADC_SYNC         : out   std_logic;
+      ADC_SCK          : out   std_logic_vector(kNumADC-1 downto 0);
+      ADC_CSB          : out   std_logic_vector(kNumADC-1 downto 0);
+      ADC_SDIO         : inout std_logic_vector(kNumADC-1 downto 0);
+    
+      -- Local bus --
+      addrLocalBus     : in    LocalAddressType;
+      dataLocalBusIn   : in    LocalBusInType;
+      dataLocalBusOut  : out   LocalBusOutType;
+      reLocalBus       : in    std_logic;
+      weLocalBus       : in    std_logic;
+      readyLocalBus    : out   std_logic
+    );  
+  end component;
 
   -- SFP transceiver -----------------------------------------------------------------------
   constant kMiiPhyad      : std_logic_vector(kWidthPhyAddr-1 downto 0):= "00000";
@@ -269,6 +313,7 @@ architecture Behavioral of toplevel is
   signal clk_locked         : std_logic;
   signal clk_sys_locked     : std_logic;
   signal clk_spi            : std_logic;
+  signal clk_adc_spi        : std_logic;
 
   signal clk_is_ready       : std_logic;
   
@@ -278,6 +323,7 @@ architecture Behavioral of toplevel is
       clk_sys           : out std_logic;
       clk_indep_gtx     : out std_logic;
       clk_spi           : out std_logic;
+      clk_adc_spi       : out std_logic;
       -- Status and control signals
       reset             : in  std_logic;
       locked            : out std_logic;
@@ -287,6 +333,7 @@ architecture Behavioral of toplevel is
 
   signal clk_fast, clk_slow   : std_logic;
   --signal pll_is_locked        : std_logic;
+  signal test : std_logic_vector(3 downto 0);
 
 
  begin
@@ -304,19 +351,39 @@ architecture Behavioral of toplevel is
   bct_reset       <= system_reset or emergency_reset(0);
   
   
-  NIM_OUT     <= txout_clk(0);
+  --NIM_OUT     <= txout_clk(0);
+  NIM_OUT     <= test(0);
   
   dip_sw(0)   <= DIP(0);
   dip_sw(1)   <= DIP(1);
   dip_sw(2)   <= DIP(2);
   dip_sw(3)   <= DIP(3);
-  
-  LED(0)      <= dip_sw(kSiTCP.Index);
-  LED(1)      <= clk_sys_locked;
-  LED(2)      <= mmcm_locked;
-  LED(3)      <= mmcm_reset(0);
 
   -- MIKUMARI --------------------------------------------------------------------------
+  
+  -- AD9637 SPI-------------------------------------------------------------------------
+  ADC_SCLK <= test;
+  u_A9C_Inst : entity mylib.AD9637SPI
+    port map(
+      RST              => user_reset,
+      clk              => clk_adc_spi,
+    
+      -- Module output --
+      ADC_SYNC         => open,       -- AD9637's SYNC port is not connected anywhere on NetWavetizer-40
+      ADC_SCK          => test,
+      ADC_CSB          => ADC_CSB,
+      ADC_SDIO         => ADC_SDIO,
+      
+      rd               => LED(3 downto 0),
+    
+      -- Local bus --
+      addrLocalBus     => addr_LocalBus,
+      dataLocalBusIn   => data_LocalBusIn,
+      dataLocalBusOut  => data_LocalBusOut(kA9C.ID),
+      reLocalBus       => re_LocalBus(kA9C.ID),
+      weLocalBus       => we_LocalBus(kA9C.ID),
+      readyLocalBus    => ready_LocalBus(kA9C.ID)
+      );
 
   -- MIG -------------------------------------------------------------------------------
 
@@ -519,6 +586,24 @@ architecture Behavioral of toplevel is
        rstFromTCP    => open
        );
   end generate;
+  
+  -- LED Module ------------------------------------------------------------------------
+  --u_LEDModule_Inst : entity mylib.LEDModule
+  --  port map(
+  --      rst             => user_reset,
+  --      clk             => clk_sys,
+        
+  --      -- Module output --
+  --      outLED          => LED(3 downto 0),
+        
+  --      -- Local bus --
+  --      addrLocalBus    => addr_LocalBus,
+  --      dataLocalBusIn  => data_LocalBusIn,
+  --      dataLocalBusOut => data_LocalBusOut(kLED.ID),
+  --      reLocalBus      => re_LocalBus(kLED.ID),
+  --      weLocalBus      => we_LocalBus(kLED.ID),
+  --      readyLocalBus   => ready_LocalBus(kLED.ID)
+  --  );
 
   -- SFP transceiver -------------------------------------------------------------------
   u_MiiRstTimer_Inst : entity mylib.MiiRstTimer
@@ -656,7 +741,8 @@ architecture Behavioral of toplevel is
       -- Clock out ports  
       clk_sys       => clk_sys,
       clk_indep_gtx => clk_gbe,
-      clk_spi => clk_spi,
+      clk_spi       => clk_spi,
+      clk_adc_spi   => clk_adc_spi,
       -- Status and control signals                
       reset         => '0',
       locked        => clk_sys_locked,
