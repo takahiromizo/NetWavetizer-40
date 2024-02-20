@@ -1,0 +1,3 @@
+[submodule "SiTCP_Netlist_for_Artix7"]
+	path = SiTCP_Netlist_for_Artix7
+	url = https://github.com/BeeBeansTechnologies/SiTCP_Netlist_for_Artix7.git
