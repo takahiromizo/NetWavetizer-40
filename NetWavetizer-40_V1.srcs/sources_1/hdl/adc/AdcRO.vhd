@@ -17,14 +17,16 @@ entity AdcRO is
   port
   (
     -- SYSTEM port --
-    rst              : in  std_logic;   -- Asynchronous reset (active high)
-    clkSys           : in  std_logic;   -- System clock (global clock)
-    clkIdelayRef     : in  std_logic;   -- 200 MHz ref. clock.
-    tapValueIn       : in  TapType;     -- External TAP value input (for data)
-    tapValueFrameIn  : in  TapType;     -- External TAP value input (for frame)
-    enExtTapIn       : in  std_logic;   -- Active tapValueIn and tapValueFrameIn
-    enBitslip        : in  std_logic;   -- Enable bitslip sequence
-    frameRefPatt     : in  AdcDataType; -- ADC FRAME reference bit pattern
+    rst              : in  std_logic;      -- Asynchronous reset (active high)
+    clkSys           : in  std_logic;      -- System clock (global clock)
+    clkIdelayRef     : in  std_logic;      -- 200 MHz ref. clock.
+    tapValueIn       : in  TapType;        -- External TAP value input (for data)
+    tapValueFrameIn  : in  TapType;        -- External TAP value input (for frame)
+    enExtTapIn       : in  std_logic;      -- Active tapValueIn and tapValueFrameIn
+    enBitslip        : in  std_logic;      -- Enable bitslip sequence
+    frameRefPatt1    : in  AdcDataSubType; -- ADC FRAME reference bit pattern - No.1
+    frameRefPatt2    : in  AdcDataSubType; -- ADC FRAME reference bit pattern - No.2
+    fcoRefPatt       : in  FcoDataType;    -- FCO FRAME reference bit pattern
 
     -- Status --
     isReady          : out std_logic_vector(kNumADCBlock-1 downto 0); -- If high, data outputs are valid
@@ -68,10 +70,10 @@ architecture RTL of AdcRO is
     rst    : IN  STD_LOGIC;
     wr_clk : IN  STD_LOGIC;
     rd_clk : IN  STD_LOGIC;
-    din    : IN  STD_LOGIC_VECTOR(89 DOWNTO 0);
+    din    : IN  STD_LOGIC_VECTOR(107 DOWNTO 0);
     wr_en  : IN  STD_LOGIC;
     rd_en  : IN  STD_LOGIC;
-    dout   : OUT STD_LOGIC_VECTOR(89 DOWNTO 0);
+    dout   : OUT STD_LOGIC_VECTOR(107 DOWNTO 0);
     full   : OUT STD_LOGIC;
     empty  : OUT STD_LOGIC;
     valid  : OUT STD_LOGIC
@@ -155,7 +157,9 @@ begin
 	    tapValueIn      => tap_values(i),
 	    tapValueOut     => open,
 	    enBitslip       => enBitslip,
-	    frameRefPatt    => frameRefPatt,
+	    frameRefPatt1   => frameRefPatt1,
+	    frameRefPatt2   => frameRefPatt2,
+	    fcoRefPatt      => fcoRefPatt,
 
 	    -- status --
 	    isReady         => is_ready(i),

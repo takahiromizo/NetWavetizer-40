@@ -57,10 +57,7 @@ package defAdcBlock is
   end record;
 
   -- Local Address ----------------------------------------------------
-  constant kOfsPtr     : LocalAddressType := x"000"; -- W/R, [10:0], pointer offset of the read pointer for ring buffer
-  constant kWinMax     : LocalAddressType := x"010"; -- W/R, [10:0], Max coarse counter
-  constant kWinMin     : LocalAddressType := x"020"; -- W/R, [10:0], Min coarse counter
-  constant kAdcRoReset : LocalAddressType := x"030"; -- W/R, [0:0],  Reset to AdcRo (default is HIGH)
-  constant kIsReady    : LocalAddressType := x"040"; -- R,   [3:0],  AdcRo IsReady signals
+  constant kAdcRoReset : LocalAddressType := x"000"; -- W/R, [0:0],  Reset to AdcRo (default is HIGH)
+  constant kIsReady    : LocalAddressType := x"010"; -- R,   [3:0],  AdcRo IsReady signals
 
 end package defAdcBlock;

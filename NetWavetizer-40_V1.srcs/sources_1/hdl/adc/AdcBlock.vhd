@@ -25,6 +25,7 @@ entity AdcBlock is
 
     -- control registers --
     busyAdc                    : out std_logic;
+    readyAdc                   : out std_logic;
     
     -- data input --
     ADC_DATA_P                 : in  std_logic_vector(kNumAdcInputBlock-1 downto 0);
@@ -69,7 +70,7 @@ architecture RTL of AdcBlock is
   signal adcro_is_ready                  : std_logic_vector(kNumADCBlock-1 downto 0);
   --signal clk_adc                         : std_logic_vector(kNumADC-1 downto 0);
   --signal gclk_adc                        : std_logic_vector(kNumADC-1 downto 0);
-  signal adc_data                        : AdcDataBlockArray; -- 32 * 10
+  signal adc_data                        : AdcDataBlockArray; -- 32 * 12
 
 
   COMPONENT vio_adc
@@ -115,6 +116,7 @@ begin
   -- ========================================================================
   -- body
   -- ========================================================================
+  readyAdc  <= adcro_is_ready(0) and adcro_is_ready(1) and adcro_is_ready(2) and adcro_is_ready(3); 
 
   -- signal connection ------------------------------------------------------
   u_VIO : vio_adc
@@ -142,7 +144,9 @@ begin
       tapValueFrameIn => tap_value_frame_in,
       enExtTapIn      => en_ext_tapin(0),
       enBitslip       => '1',
-      frameRefPatt    => "1100000000",
+      frameRefPatt1   => "111111",
+      frameRefPatt2   => "000000",
+      fcoRefPatt      => "111111000000",
 
       -- Status --
       isReady         => adcro_is_ready,

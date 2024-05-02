@@ -11,7 +11,7 @@ use mylib.defAD9637Adc.all;
 -- ----------------------------------------------------
 -- == Clock network
 -- Forwarded fast clock ---> BUFIO     ---> clk_fast
---                      |--> BUFR(1/5) ---> clk_slow
+--                      |--> BUFR(1/3) ---> clk_slow
 -- ----------------------------------------------------
 
 
@@ -31,20 +31,22 @@ entity AD9637Adc is
     -- SYSTEM port --
     rst                  : in  std_logic;    -- Asynchronous reset (active high)
     invPolarity          : in  std_logic_vector(kNumAdcCh+kNumFrame-1 downto 0);
-    clkIdelayRef         : in  std_logic;    -- 200 MHz ref. clock
-    tapValueIn           : in  TapArray;     -- TAP number input
-    tapValueOut          : out TapArray;     -- TAP number output
-    enBitslip            : in  std_logic;    -- Enable bitslip sequence
-    frameRefPatt         : in  AdcDataType;  -- ADC FRAME reference bit pattern
+    clkIdelayRef         : in  std_logic;      -- 200 MHz ref. clock
+    tapValueIn           : in  TapArray;       -- TAP number input
+    tapValueOut          : out TapArray;       -- TAP number output
+    enBitslip            : in  std_logic;      -- Enable bitslip sequence
+    frameRefPatt1        : in  AdcDataSubType; -- ADC FRAME reference bit pattern - No.1
+    frameRefPatt2        : in  AdcDataSubType; -- ADC FRAME reference bit pattern - No.2
+    fcoRefPatt           : in  FcoDataType;    -- FCO FRAME reference bit pattern
     
     -- Status --
-    isReady              : out std_logic;    -- If high, data outputs are valid
-    bitslipErr           : out std_logic;    -- Indicate bitslip failure
+    isReady              : out std_logic;      -- If high, data outputs are valid
+    bitslipErr           : out std_logic;      -- Indicate bitslip failure
     
     -- Data Out --
-    adcClk               : out std_logic;    -- Regional clock: clk_slow
-    adcDataOut           : out AdcDataArray; -- De-serialized ADC data
-    adcFrameOut          : out AdcDataType;  -- De-serialized frame bit pattern
+    adcClk               : out std_logic;      -- Regional clock: clk_slow
+    adcDataOut           : out AdcDataArray;   -- De-serialized ADC data
+    adcFrameOut          : out AdcDataType;    -- De-serialized frame bit pattern
     
     -- ADC In --
     adcDClkP             : in  std_logic;                              -- ADC DCLK(forwarded fast clock)
@@ -61,6 +63,11 @@ architecture RTL of AD9637Adc is
   -- System --
   signal adc_dclk               : std_logic;
   signal clk_fast, clk_slow     : std_logic;
+  signal clk_dclk               : std_logic;
+  signal clk_smp                : std_logic;
+  signal clk_div                : std_logic;
+  signal clk_shift              : std_logic;
+  signal clk_reg                : std_logic;
 
   signal rst_all                : std_logic;
   signal semi_sync_reset        : std_logic;
@@ -87,8 +94,10 @@ architecture RTL of AD9637Adc is
   signal state_idelay           : IdelayControlProcessType;
 
   -- ISERDES --
-  type SerDesOutType is array (integer range kNumAdcCh+kNumFrame-1 downto 0) of AdcDataType;
+  subtype SerDesType is std_logic_vector(kWidthDev-1 downto 0);
+  type SerDesOutType is array (integer range kNumAdcCh+kNumFrame-1 downto 0) of SerDesType;
   signal dout_serdes            : SerDesOutType;
+  signal rx_data                : DataFrameArray;
   signal reg_adc_data           : AdcDataArray;
   signal reg_adc_frame          : AdcDataType;
 
@@ -98,19 +107,36 @@ architecture RTL of AD9637Adc is
   signal bit_aligned            : std_logic;
   signal bitslip_failure        : std_logic;
   signal state_bitslip          : BitslipControlProcessType;
+  
+  signal en_fco_check           : std_logic;
+  signal en_shift               : std_logic;
+  signal fco_patt_count         : integer range 0 to kMaxPattCheck;
+  signal state_clkadjust        : ClkSmpControlProcessType;
 
   -- IODELAY_GROUP --
-  attribute IODELAY_GROUP               : string;
+  attribute IODELAY_GROUP                 : string;
 
-  attribute mark_debug                  : boolean;
-  attribute mark_debug of state_bitslip : signal is enDEBUG;
-  attribute mark_debug of state_idelay  : signal is enDEBUG;
+  attribute mark_debug                    : boolean;
+  attribute mark_debug of state_bitslip   : signal is enDEBUG;
+  attribute mark_debug of state_idelay    : signal is enDEBUG;
+  attribute mark_debug of state_clkadjust : signal is enDEBUG;
+  --attribute mark_debug of dout_serdes   : signal is enDEBUG;
 
   -- Async reg --
   attribute async_reg                   : boolean;
   attribute async_reg of u_sys_to_adc   : label is true;
 
   -- debug ---------------------------------------------------------------
+  
+  component JKFF
+    port(
+      arst  : in  std_logic;
+	  J	    : in  std_logic;
+	  K     : in  std_logic;
+	  clk   : in  std_logic;
+	  Q     : out std_logic     
+    );
+  end component;
 
   begin
     -- ===================================================================
@@ -141,12 +167,12 @@ architecture RTL of AD9637Adc is
     u_BUFIO_inst : BUFIO
       port map (
         O  => clk_fast, -- 1-bit output: Clock output (connect to I/O clock loads).
-	    I  => adc_dclk  -- 1-bit input: Clock input (connect to an IBUF or BUFMR).
+	    I  => adc_dclk  -- 1-bit input : Clock input  (connect to an IBUF or BUFMR).
       );
 
     u_BUFR_inst : BUFR
       generic map (
-        BUFR_DIVIDE  => "5",      -- Values: "BYPASS, 1, 2, 3, 4, 5, 6, 7, 8"
+        BUFR_DIVIDE  => "3",      -- Values: "BYPASS, 1, 2, 3, 4, 5, 6, 7, 8"
 	    SIM_DEVICE   => "7SERIES" -- Must be set to "7SERIES"
       )
       port map (
@@ -155,6 +181,46 @@ architecture RTL of AD9637Adc is
 	    CLR => '0',      -- 1-bit input: Active high, asynchronous clear (Divided modes only)
 	    I   => adc_dclk  -- 1-bit input: Clock buffer input driven by an IBUF, MMCM or local interconnect
       );
+      
+    u_BUFR_fast : BUFR
+      generic map (
+        BUFR_DIVIDE  => "1",      -- Values: "BYPASS, 1, 2, 3, 4, 5, 6, 7, 8"
+	    SIM_DEVICE   => "7SERIES" -- Must be set to "7SERIES"
+      )
+      port map (
+        O   => clk_dclk, -- 1-bit output: Clock output port
+	    CE  => '1',      -- 1-bit input: Active high, clock enable (Divided modes only)
+	    CLR => '0',      -- 1-bit input: Active high, asynchronous clear (Divided modes only)
+	    I   => adc_dclk  -- 1-bit input: Clock buffer input driven by an IBUF, MMCM or local interconnect
+      );
+    
+    u_JKFF_clkslow_div : JKFF
+      port map(
+        arst        => rst,
+        J           => '1',
+        K           => '1',
+        clk         => clk_slow,
+        Q           => clk_div
+      );
+    
+    u_clk_shift : process(clk_slow)
+    begin
+      if(clk_slow'event and clk_slow = '1') then
+        if(en_shift = '1') then
+            clk_reg    <= clk_div;
+            clk_shift  <= clk_reg;
+        elsif(en_shift = '0') then
+            clk_shift  <= clk_div;
+        end if;
+      end if;
+    end process;
+    
+    u_clk_smp : process(clk_dclk)
+    begin
+      if(clk_dclk'event and clk_dclk = '1') then
+        clk_smp        <= clk_shift;
+      end if;
+    end process;
 
     -- Clock domain crossing -----------------------------------------------
     u_sys_to_adc : process(clk_slow)
@@ -226,15 +292,24 @@ architecture RTL of AD9637Adc is
 	         ioReset            => serdes_reset
 	         );
     end generate;
-
-    u_bufdout : process(clk_slow)
+    
+    u_combine : process(clk_slow)
     begin
       if(clk_slow'event and clk_slow = '1') then
+        for i in 0 to kNumAdcCh loop
+          rx_data(i)   <=  rx_data(i)(kWidthDev-1 downto 0) & dout_serdes(i);
+        end loop;
+      end if;
+    end process;
+
+    u_bufdout : process(clk_smp)
+    begin
+      if(clk_smp'event and clk_smp = '1') then
         for i in 0 to kNumAdcCh-1 loop
-          reg_adc_data(i)   <= "1000000000" xor dout_serdes(i);
+          reg_adc_data(i)   <= "000000000000" xor rx_data(i);
 	    end loop;
 
-	    reg_adc_frame  <= dout_serdes(kNumAdcCh);
+	    reg_adc_frame  <= rx_data(kNumAdcCh);
       end if;
     end process;
 
@@ -276,7 +351,9 @@ architecture RTL of AD9637Adc is
     begin
       if(clk_slow'event and clk_slow = '1') then
         if(en_patt_check = '1') then
-          if(frameRefPatt = reg_adc_frame) then
+          if(frameRefPatt1 = dout_serdes(kNumAdcCh)) then
+	        frame_patt_count  <= frame_patt_count + 1;
+	      elsif(frameRefPatt2 = dout_serdes(kNumAdcCh)) then
 	        frame_patt_count  <= frame_patt_count + 1;
 	      else
 	        frame_patt_count  <= 0;
@@ -348,6 +425,87 @@ architecture RTL of AD9637Adc is
       end if;
 
     end process;
+    
+    -- Clock adjustment(clk_smp) --------------------------------
+    u_check_fco : process(clk_smp)
+    begin
+      if(clk_smp'event and clk_smp = '1') then
+        if(en_fco_check = '1' and state_bitslip = BitslipFinished) then
+         if(fcoRefPatt = reg_adc_frame) then
+            fco_patt_count   <= fco_patt_count + 1;
+          else
+            fco_patt_count   <= 0;
+          end if;
+        else
+          fco_patt_count     <= 0;
+        end if;
+      end if;
+    end process;
+    
+    u_clksmp_sm : process(serdes_reset, clk_smp)
+      constant kNumPatt         : integer := 2;
+      variable frame_pattern    : integer range 0 to 1;
+      variable elapsed_fco_time : integer range 0 to kMaxPattCheck;
+    begin
+      if(clk_smp'event and clk_smp = '1') then
+        if(serdes_reset = '1') then
+          elapsed_fco_time   := 0;
+          frame_pattern      := 0;
+          en_fco_check       <= '0';
+          en_shift           <= '0';
+          
+          state_clkadjust    <= Init;
+          
+        else
+          case state_clkadjust is
+            when Init =>
+              state_clkadjust  <= Waiting;
+              
+            when Waiting =>
+              if(bit_aligned = '1') then
+                en_fco_check      <= '1';
+                state_clkadjust   <= CheckPatt;
+              end if;
+              
+            when CheckPatt =>
+              elapsed_fco_time  := elapsed_fco_time + 1;
+              if(fco_patt_count = kPattOkThreshold) then
+                en_fco_check        <= '0';
+                state_clkadjust     <= ClkSmpAdjusted;
+              elsif(elapsed_fco_time = kMaxPattCheck-1) then
+                en_fco_check        <= '0';
+                state_clkadjust     <= Shift;
+              end if;
+            
+            when Shift =>
+              if(frame_pattern = kNumPatt-1) then
+                state_clkadjust     <= ClkSmpFailure;
+              else
+                en_shift            <= '1';
+                en_fco_check        <= '1';
+                elapsed_fco_time    := 0;
+                frame_pattern       := frame_pattern+1;
+                state_clkadjust     <= CheckPatt;
+              end if;
+            
+            when ClkSmpAdjusted =>
+              null;
+            
+            when ClkSmpFailure =>
+              elapsed_fco_time    := 0;
+              frame_pattern       := 0;
+              en_fco_check        <= '0';
+              en_shift            <= '0';
+              state_clkadjust     <= Init;
+              
+            when others =>
+              state_clkadjust     <= Init;
+              
+          end case; 
+          
+        end if;
+      end if;
+    end process;
 
     -- Status register ------------------------------------------
     -- For initialize process --
@@ -359,7 +517,7 @@ architecture RTL of AD9637Adc is
         if(serdes_reset = '1') then
 	      is_ready   <= '0';
 	    else
-          if(state_idelay = IdelayAdjusted and state_bitslip = BitslipFinished) then
+          if(state_idelay = IdelayAdjusted and state_bitslip = BitslipFinished and state_clkadjust = ClkSmpAdjusted) then
 	        is_ready  <= '1';
           else
 	        is_ready  <= '0';

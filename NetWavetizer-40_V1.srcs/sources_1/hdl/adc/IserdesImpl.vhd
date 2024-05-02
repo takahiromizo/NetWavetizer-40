@@ -13,7 +13,8 @@ entity IserdesImpl is
     kDiffTerm         : boolean := TRUE;
     kIoStandard       : string  := "LVDS";     -- IOSTANDARD of OBUFDS
     kIoDelayGroup     : string  := "idelay_0"; -- IODELAY_GROUP
-    kFreqRefClk       : real                   -- Frequency of refclk for IDELAYCTRL (MHz).
+    kFreqRefClk       : real;                  -- Frequency of refclk for IDELAYCTRL (MHz).
+    enDEBUG           : boolean := FALSE
   );
   port
   (
@@ -48,9 +49,8 @@ architecture RTL of IserdesImpl is
 
   signal clk_in, clk_in_inv                       : std_logic;
   signal data_in_from_pin, data_in_from_pin_delay : std_logic;
-  signal iserdes_q                                : std_logic_vector(13 downto 0);
+  signal iserdes_q                                : std_logic_vector(7 downto 0);
   signal rx_output                                : std_logic_vector(dOutToDevice'range);
-  signal icascade1, icascade2                     : std_logic;
   
 begin
   u_Rx_IBUFDS_inst : IBUFDS
@@ -96,8 +96,9 @@ begin
 
   clk_in     <= clkIn;
   clk_in_inv <= not clkIn;
+  
 
-  u_ISERDESE2_master : ISERDESE2
+  u_ISERDESE2 : ISERDESE2
     generic map (
       DATA_RATE              => "DDR",        -- DDR, SDR
       DATA_WIDTH             => kDevW,        -- Parallel data width (2-8, 10, 14)
@@ -121,8 +122,8 @@ begin
       Q7                     => iserdes_q(6),
       Q8                     => iserdes_q(7),
       -- SIFTOUT, SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
-      SHIFTOUT1              => icascade1,
-      SHIFTOUT2              => icascade2,
+      SHIFTOUT1              => open,
+      SHIFTOUT2              => open,
       BITSLIP                => bitslip,                -- 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
                                                         -- CLKDIV when asserted (active High). Subsequently, the data seen on the
                                                         -- Q1 to Q8 output ports will shift, as in a barrel-shifter operation, one
@@ -151,68 +152,12 @@ begin
       SHIFTIN1               => '0',
       SHIFTIN2               => '0'
     );
-
-  u_ISERDESE2_slave : ISERDESE2
-    generic map (
-      DATA_RATE              => "DDR",        -- DDR, SDR
-      DATA_WIDTH             => kDevW,        -- Parallel data width (2-8, 10, 14)
-      DYN_CLKDIV_INV_EN      => "FALSE",      -- Enable DYNCLKDIVINVSEL inversion (FALSE, TRUE)
-      DYN_CLK_INV_EN         => "FALSE",      -- Enable DYNCLKINVSEL inversion (FALSE< TRUE)
-      INTERFACE_TYPE         => "NETWORKING", -- MEMORY, MEMORY_DDR3, MEMORY_QDR, NETWORKING, OVERSAMPLE
-      IOBDELAY               => "IFD",        -- NONE, BOTH, IBUF, IFD
-      NUM_CE                 => 2,            -- Number of clock enable (1, 2)
-      OFB_USED               => "FALSE",      -- Select OFB path (FALSE, TRUE)
-      SERDES_MODE            => "SLAVE"       -- MASTER, SLAVE
-    )
-    port map (
-      O                      => open,         -- 1-bit output: Combinatorial output
-      -- Q1 - Q8: 1-bit (each) output: Registered data outputs
-      Q1                     => open,
-      Q2                     => open,
-      Q3                     => iserdes_q(8),
-      Q4                     => iserdes_q(9),
-      Q5                     => iserdes_q(10),
-      Q6                     => iserdes_q(11),
-      Q7                     => iserdes_q(12),
-      Q8                     => iserdes_q(13),
-      -- SIFTOUT, SHIFTOUT2: 1-bit (each) output: Data width expansion output ports
-      SHIFTOUT1              => open,
-      SHIFTOUT2              => open,
-      BITSLIP                => bitslip,                -- 1-bit input: The BITSLIP pin performs a Bitslip operation synchronous to
-                                                        -- CLKDIV when asserted (active High). Subsequently, the data seen on the
-                                                        -- Q1 to Q8 output ports will shift, as in a barrel-shifter operation, one
-                                                        -- position every time Bitsilip is invoked (DDR operation is different from
-                                                        -- SDR).
-
-      -- CE1, CE2: 1-bit (each) input: Data register clock enable inputs
-      CE1                    => '1',
-      CE2                    => '1',
-      CLKDIVP                => '0',                    -- 1-bit input: TBD
-      -- Clocks: 1-bit (each) input: ISERDESE2 clock input ports
-      CLK                    => clk_in,                 -- 1-bit input: High-speed clock
-      CLKB                   => clk_in_inv,             -- 1-bit input: High-speed secondary clock
-      CLKDIV                 => clkDivIn,               -- 1-bit input: Divided clock
-      OCLK                   => '0',                    -- 1-bit input: High speed output clock used when INTERFACE_TYPE="MEMORY"
-      --  Dynamic Clock Inversions: 1-bit (each) input: Dynamic clock inversion pins to switch clock polarity
-      DYNCLKDIVSEL           => '0',
-      DYNCLKSEL              => '0',
-    -- Input Data: 1-bit (each) input: ISERDESE2 data input ports
-      D                      => '0',                    -- 1-bit input: Data input
-      DDLY                   => '0',                    -- 1-bit input: High speed negative edge output clock
-      OFB                    => '0',                    -- 1-bit input: Data feedback from OSERDESE2
-      OCLKB                  => '0',                    -- 1-bit input: High speed negative edge output clock
-      RST                    => ioReset,                -- Active high asynchronous reset
-      -- SHIFTIN1, SHIFTIN2: 1-bit (each) input: Data width expansion input ports
-      SHIFTIN1               => icascade1,
-      SHIFTIN2               => icascade2
-    );
-
+  
   u_swap : for i in 0 to kDevW-1 generate
     begin
-      --rx_output(i)  <= invPolarity xor iserdes_q(kDevW-i-1);
       rx_output(i)  <= invPolarity xor iserdes_q(i);
   end generate;
-
+  
   dOutToDevice  <= rx_output;
 
 end RTL;

@@ -16,7 +16,7 @@ package defAdcRO is
   function GetInvPolarity(index : integer) return std_logic_vector;
   function GetGenFlagIdelayCtrl(index : integer) return boolean;
   function GetIdelayGroup(index : integer) return string;
-
+  
   function GetTapValues(index : integer) return TapArray;
 
 end package defAdcRO;
@@ -33,7 +33,7 @@ package body defAdcRO is
       when 0      => return("000000000");
       when 1      => return("000000000");
       when 2      => return("000000000");
-      when 3      => return("000000000");
+      when 3      => return("010110110");
       when others => return("000000000");
 
     end case;
@@ -69,20 +69,21 @@ package body defAdcRO is
     else
       return("idelay_3");
     end if;
-
+    
   end GetIdelayGroup;
+  
 
   -- GetTapValues ---------------------------------------------------------
   function GetTapValues(index : integer) return TapArray is
   begin
     if (index = 0) then
-      return("00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000");
+      return("01111", "01111", "01010", "01111", "01111", "01111", "01111", "01111", "01111");
     elsif (index = 1) then
-      return("00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000");
+      return("01111", "01111", "01111", "01111", "01001", "01111", "01111", "01111", "01111");
     elsif (index = 2) then
-      return("00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000");
+      return("01111", "01111", "01111", "01111", "01111", "01001", "01010", "01111", "01111");
     else
-      return("00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000", "00000");
+      return("01111", "01111", "01111", "01010", "01111", "01111", "01111", "01111", "01111");
     end if;
 
   end GetTapValues;
