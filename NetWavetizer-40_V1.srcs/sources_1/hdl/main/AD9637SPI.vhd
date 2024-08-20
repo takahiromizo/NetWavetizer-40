@@ -20,8 +20,6 @@ entity AD9637SPI is
     ADC_CSB          : out   std_logic_vector(kNumADC-1 downto 0);
     ADC_SDIO         : inout std_logic_vector(kNumADC-1 downto 0);
     
-    rd               : out std_logic_vector(kNumADC-1 downto 0);
-    
     -- Local bus --
     addrLocalBus     : in    LocalAddressType;
     dataLocalBusIn   : in    LocalBusInType;
@@ -45,6 +43,7 @@ architecture RTL of AD9637SPI is
   signal reg_to_AD9637   : std_logic_vector(7 downto 0);
   signal reg_from_AD9637 : RegDataArray;
   signal out_tim         : std_logic;
+  signal adcsck          : std_logic_vector(kNumADC-1 downto 0);
   signal sdout           : std_logic;
   signal sddir           : std_logic_vector(kNumADC-1 downto 0);
   signal in_sdin         : std_logic_vector(kNumADC-1 downto 0);
@@ -88,11 +87,11 @@ architecture RTL of AD9637SPI is
   
   component JKFF
     port(
-    arst  : in  std_logic;
-	J	  : in  std_logic;
-	K     : in  std_logic;
-	clk   : in  std_logic;
-	Q     : out std_logic
+      arst  : in  std_logic;
+	  J	    : in  std_logic;
+	  K     : in  std_logic;
+	  clk   : in  std_logic;
+	  Q     : out std_logic
     );
   end component;
   
@@ -100,8 +99,8 @@ architecture RTL of AD9637SPI is
 begin
   -- signal connection ----------------------------------------
   ADC_CSB    <= out_csb;
+  ADC_SCK    <= adcsck;
   ack_subseq <= ack_spi(0) or ack_spi(1) or ack_spi(2) or ack_spi(3);
-  rd         <= en_read;
   
   -- clock dividing 2 --
   u_Dividing2 : JKFF
@@ -161,7 +160,7 @@ begin
       sddirIn   => out_sddir,
       sdoIn     => out_sdout,
       -- Out --
-      sckOut    => ADC_SCK,
+      sckOut    => adcsck,
       sddirOut  => sddir,
       sdoOut    => sdout
     );
@@ -255,11 +254,11 @@ begin
             
             when kSetReg(kNonMultiByte'range) =>
               if(addrLocalBus(kMultiByte'range) = k1stByte) then
-                addr_AD9637(15 downto 8) <= dataLocalBusIn;
+                reg_to_AD9637            <= dataLocalBusIn;
               elsif(addrLocalBus(kMultiByte'range) = k2ndByte) then
                 addr_AD9637(7 downto 0)  <= dataLocalBusIn;
               elsif(addrLocalBus(kMultiByte'range) = k3rdByte) then
-                reg_to_AD9637            <= dataLocalBusIn;
+                addr_AD9637(15 downto 8) <= dataLocalBusIn;
               end if;
               state_lbus     <= Done;
               

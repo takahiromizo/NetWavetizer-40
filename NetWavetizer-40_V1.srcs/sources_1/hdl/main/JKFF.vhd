@@ -6,7 +6,7 @@ use ieee.std_logic_1164.all;
 entity JKFF is
     port(
 	arst  : in std_logic;
-	J	    : in std_logic;
+	J	  : in std_logic;
 	K     : in std_logic;
 	clk   : in std_logic;
 	Q     : out std_logic

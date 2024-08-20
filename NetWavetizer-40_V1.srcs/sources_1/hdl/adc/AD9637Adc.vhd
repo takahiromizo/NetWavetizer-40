@@ -116,10 +116,10 @@ architecture RTL of AD9637Adc is
   -- IODELAY_GROUP --
   attribute IODELAY_GROUP                 : string;
 
-  attribute mark_debug                    : boolean;
-  attribute mark_debug of state_bitslip   : signal is enDEBUG;
-  attribute mark_debug of state_idelay    : signal is enDEBUG;
-  attribute mark_debug of state_clkadjust : signal is enDEBUG;
+  --attribute mark_debug                    : boolean;
+  --attribute mark_debug of state_bitslip   : signal is enDEBUG;
+  --attribute mark_debug of state_idelay    : signal is enDEBUG;
+  --attribute mark_debug of state_clkadjust : signal is enDEBUG;
   --attribute mark_debug of dout_serdes   : signal is enDEBUG;
 
   -- Async reg --

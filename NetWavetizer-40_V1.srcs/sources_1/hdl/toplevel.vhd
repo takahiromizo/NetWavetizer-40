@@ -8,14 +8,17 @@ use UNISIM.VComponents.all;
 
 library mylib;
 use mylib.defToplevel.all;
+use mylib.defTRM.all;
 use mylib.defBCT.all;
 use mylib.defBusAddressMap.all;
 use mylib.defSiTCP.all;
 use mylib.defRBCP.all;
 use mylib.defMiiRstTimer.all;
 use mylib.defA9C.all;
+use mylib.defAD9637Adc.all;
 use mylib.defAdcRO.all;
 use mylib.defAdcBlock.all;
+use mylib.defEVB.all;
 
 entity toplevel is
   Port (
@@ -83,6 +86,7 @@ end toplevel;
 
 architecture Behavioral of toplevel is
   attribute mark_debug : string;
+  attribute keep       : string;
 
   -- System --------------------------------------------------------------------------------
   signal sitcp_reset      : std_logic;
@@ -124,11 +128,48 @@ architecture Behavioral of toplevel is
   signal re_LocalBus            : ControlRegArray;
   signal we_LocalBus            : ControlRegArray;
   signal ready_LocalBus         : ControlRegArray;
+  
+  -- TRM -----------------------------------------------------------------------------------
+  signal seq_busy, module_busy  : std_logic;
+  attribute keep of seq_busy    : signal is "TRUE";
+  attribute keep of module_busy : signal is "TRUE";
+  
+  signal reg_trm2evb            : dataTrm2Evb;
+  signal reg_evb2trm            : dataEvb2Trm;
+  signal trigger_out            : TrigDownType;
+  
+  -- DCT -----------------------------------------------------------------------------------
+  signal daq_gate               : std_logic;
+  signal evb_reset_from_DCT     : std_logic;
+  
+  -- ADC -----------------------------------------------------------------------------------
+  signal adc_busy               : std_logic;
+  signal ready_adc_ro           : std_logic;
+  signal adc_data               : std_logic_vector(kNumAdcBit*kNumAdcInputBlock-1 downto 0);
+  signal data_adc_bbus          : BBusDataType;
+  signal L1_trigger             : std_logic;
+  
+  -- ATG -----------------------------------------------------------------------------------
+  signal int_L1                 : std_logic;
+  
+  -- EVB -----------------------------------------------------------------------------------
+  signal evb_reset              : std_logic;
+  
+  signal addr_bbus              : BBusAddressType;
+  signal data_bbus              : BBusDataArray;
+  signal re_bbus                : BBusControlType;
+  signal rv_bbus                : BBusControlType;
+  signal dready_bbus            : BBusControlType;
+  signal bind_bbus              : BBusControlType;
+  signal isbound_to_builder     : BBusControlType;
 
   -- TSD -----------------------------------------------------------------------------------
   type typeTcpData is array(kNumGtx-1 downto 0) of std_logic_vector(kWidthDataTCP-1 downto 0);
   signal wd_to_tsd                              : typeTcpData;
   signal we_to_tsd, empty_to_tsd, re_from_tsd   : std_logic_vector(kNumGtx-1 downto 0);
+  
+  signal daq_data                               : std_logic_vector(kWidthDataTCP-1 downto 0);
+  signal valid_data, empty_data, req_data       : std_logic;
 
   -- SiTCP ---------------------------------------------------------------------------------
   type typeUdpAddr is array(kNumGtx-1 downto 0) of std_logic_vector(kWidthAddrRBCP-1 downto 0);
@@ -231,70 +272,18 @@ architecture Behavioral of toplevel is
   -- SiTCP communication is established during the firmware development
   component LEDModule is
     port(
-        rst             : in std_logic;
-        clk             : in std_logic;
-        -- Module output --
-        outLED          : out std_logic_vector(kNumLED downto 1);
-        -- Local bus --
-        addrLocalBus    : in  LocalAddressType;
-        dataLocalBusIn  : in  LocalBusInType;
-        dataLocalBusOut : out LocalBusOutType;
-        reLocalBus      : in  std_logic;
-        weLocalBus      : in  std_logic;
-        readyLocalBus   : out std_logic
-    );
-  end component;
-  
-  -- AD9637 SPI ----------------------------------------------------------------------------
-  component AD9637SPI is
-    port(
-      -- System --
-      CLK              : in    std_logic;
-      RST              : in    std_logic;
-    
+      rst             : in std_logic;
+      clk             : in std_logic;
       -- Module output --
-      ADC_SYNC         : out   std_logic;
-      ADC_SCK          : out   std_logic_vector(kNumADC-1 downto 0);
-      ADC_CSB          : out   std_logic_vector(kNumADC-1 downto 0);
-      ADC_SDIO         : inout std_logic_vector(kNumADC-1 downto 0);
-    
+      outLED          : out std_logic_vector(kNumLED downto 1);
       -- Local bus --
-      addrLocalBus     : in    LocalAddressType;
-      dataLocalBusIn   : in    LocalBusInType;
-      dataLocalBusOut  : out   LocalBusOutType;
-      reLocalBus       : in    std_logic;
-      weLocalBus       : in    std_logic;
-      readyLocalBus    : out   std_logic
-    );  
-  end component;
-  
-  -- ADC -----------------------------------------------------------------------------------
-  component AdcBlock is
-   port(
-    rst                        : in  std_logic;
-    clkSys                     : in  std_logic;
-    clkIdelayRef               : in  std_logic;
-    clkAdc                     : out std_logic_vector(kNumADCBlock-1 downto 0);
-
-    -- control registers --
-    busyAdc                    : out std_logic;
-    
-    -- data input --
-    ADC_DATA_P                 : in  std_logic_vector(kNumAdcInputBlock-1 downto 0);
-    ADC_DATA_N                 : in  std_logic_vector(kNumAdcInputBlock-1 downto 0);
-    ADC_DFRAME_P               : in  std_logic_vector(kNumADCBlock-1 downto 0);
-    ADC_DFRAME_N               : in  std_logic_vector(kNumADCBlock-1 downto 0);
-    ADC_DCLK_P                 : in  std_logic_vector(kNumADCBlock-1 downto 0);
-    ADC_DCLK_N                 : in  std_logic_vector(kNumADCBlock-1 downto 0);
-    
-    -- Local bus --
-    addrLocalBus               : in  LocalAddressType;
-    dataLocalBusIn             : in  LocalBusInType;
-    dataLocalBusOut            : out LocalBusOutType;
-    reLocalBus                 : in  std_logic;
-    weLocalBus                 : in  std_logic;
-    readyLocalBus              : out std_logic
-   );
+      addrLocalBus    : in  LocalAddressType;
+      dataLocalBusIn  : in  LocalBusInType;
+      dataLocalBusOut : out LocalBusOutType;
+      reLocalBus      : in  std_logic;
+      weLocalBus      : in  std_logic;
+      readyLocalBus   : out std_logic
+      );
   end component;
 
   -- SFP transceiver -----------------------------------------------------------------------
@@ -379,8 +368,16 @@ architecture Behavioral of toplevel is
   user_reset      <= system_reset or rst_from_bus or emergency_reset(0);
   bct_reset       <= system_reset or emergency_reset(0);
   
+  -- NIM OUT --
+  --NIM_OUT     <= txout_clk(0);
+  --NIM_OUT     <= L1_trigger;
+  NIM_OUT     <= module_busy;
   
-  NIM_OUT     <= txout_clk(0);
+  -- LED --
+  LED(0)      <= ready_adc_ro;
+  LED(1)      <= daq_gate;
+  LED(2)      <= module_busy;
+  LED(3)      <= tcp_isActive(0);
   
   dip_sw(0)   <= DIP(0);
   dip_sw(1)   <= DIP(1);
@@ -388,6 +385,77 @@ architecture Behavioral of toplevel is
   dip_sw(3)   <= DIP(3);
 
   -- MIKUMARI --------------------------------------------------------------------------
+  
+  -- TRM -------------------------------------------------------------------------------
+  seq_busy    <= adc_busy;
+  
+  u_TRM_Inst : entity mylib.TriggerManager
+    port map(
+      rst              => user_reset,
+      clk              => clk_adc,
+      clkSys           => clk_sys,
+      
+      -- Busy In --
+      sequenceBusy     => seq_busy,
+      gateDAQ          => daq_gate,
+      
+      -- Busy Out --
+      moduleBusy       => module_busy,
+      
+      -- Ext trigger --
+      ExtClear         => '0',
+      ExtL1            => int_L1,
+      ExtL2            => '0',
+      
+      -- J0 trigger --
+      -- NetWavetizer-40 doesn't have VME J0 bus
+      J0Clear          => '0',
+      J0L1             => '0',
+      J0L2             => '0',
+      J0TAG            => "0000",
+      EnJ0C            => open,
+      
+      -- RM trigger --
+      -- NetWavetizer-40 doesn't have Receiver Module
+      RMClear          => '0',
+      RML1             => '0',
+      RML2             => '0',
+      RMTAG            => "0000",
+      
+      -- module input --
+      dInTRM           => reg_evb2trm,
+      
+      -- module output --
+      TriggerToDAQ     => trigger_out,
+      dOutTRM          => reg_trm2evb,
+      
+      -- Local bus --
+      addrLocalBus     => addr_LocalBus,
+      dataLocalBusIn   => data_LocalBusIn,
+      dataLocalBusOut  => data_LocalBusOut(kTRM.ID),
+      reLocalBus       => re_LocalBus(kTRM.ID),
+      weLocalBus       => we_LocalBus(kTRM.ID),
+      readyLocalBus    => ready_LocalBus(kTRM.ID)
+      );
+  
+  -- DCT -------------------------------------------------------------------------------
+  u_DCT_Inst : entity mylib.DAQController
+    port map(
+      rst              => user_reset,
+      clk              => clk_sys,
+      
+      -- Module output --
+      daqGate          => daq_gate,
+      rstEvb           => evb_reset_from_DCT,
+      
+      -- Local bus --
+      addrLocalBus     => addr_LocalBus,
+      dataLocalBusIn   => data_LocalBusIn,
+      dataLocalBusOut  => data_LocalBusOut(kDCT.ID),
+      reLocalBus       => re_LocalBus(kDCT.ID),
+      weLocalBus       => we_LocalBus(kDCT.ID),
+      readyLocalBus    => ready_LocalBus(kDCT.ID)
+      );
   
   -- AD9637 SPI-------------------------------------------------------------------------
   u_A9C_Inst : entity mylib.AD9637SPI
@@ -400,7 +468,6 @@ architecture Behavioral of toplevel is
       ADC_SCK          => ADC_SCLK,
       ADC_CSB          => ADC_CSB,
       ADC_SDIO         => ADC_SDIO,
-      CS               => LED(3 downto 0),
     
       -- Local bus --
       addrLocalBus     => addr_LocalBus,
@@ -421,32 +488,104 @@ architecture Behavioral of toplevel is
       );
   end generate;
   
+  data_bbus(kBbADC.ID)  <= data_adc_bbus;
+  
   u_ADC_Inst : entity mylib.AdcBlock
     port map(
-      rst              => user_reset,
-      clkSys           => clk_sys,
-      clkIdelayRef     => clk_gbe,  -- need 200 MHz that is same to clk_gbe
-      clkAdc           => open,
+      rst               => user_reset,
+      clkSys            => clk_sys,
+      clkRegion         => clk_adc,   -- 25 MHz
+      clkIdelayRef      => clk_gbe,   -- need 200 MHz that is same to clk_gbe
+      clkAdc            => open,
       
       -- control registers --
-      --busyadc          => ,
+      busyadc           => adc_busy,
+      readyAdcRO        => ready_adc_ro,
       
       -- Module input --
-      ADC_DATA_P       => ADC_OUT_P,
-      ADC_DATA_N       => ADC_OUT_N,
-      ADC_DFRAME_P     => ADC_FCO_P,
-      ADC_DFRAME_N     => ADC_FCO_N,
-      ADC_DCLK_P       => ADC_DCO_P,
-      ADC_DCLK_N       => ADC_DCO_N,
+      ADC_DATA_P        => ADC_OUT_P,
+      ADC_DATA_N        => ADC_OUT_N,
+      ADC_DFRAME_P      => ADC_FCO_P,
+      ADC_DFRAME_N      => ADC_FCO_N,
+      ADC_DCLK_P        => ADC_DCO_P,
+      ADC_DCLK_N        => ADC_DCO_N,
+      cStop             => trigger_out.L1accept,
+      
+      -- Module outpt --
+      AdcData           => adc_data,
+      
+      -- Builder Bus --
+      addrBuilderBus    => addr_bbus,
+      dataBuilderBusOut => data_adc_bbus,
+      reBuilderBus      => re_bbus(kBbADC.ID),
+      rvBuilderBus      => rv_bbus(kBbADC.ID),
+      dReadyBuilderBus  => dready_bbus(kBbADC.ID),
+      bindBuilderBus    => bind_bbus(kBbADC.ID),
+      isBoundToBuilder  => isbound_to_builder(kBbADC.ID),
       
       -- Local bus --
-      addrLocalBus     => addr_LocalBus,
-      dataLocalBusIn   => data_LocalBusIn,
-      dataLocalBusOut  => data_LocalBusOut(kADC.ID),
-      reLocalBus       => re_LocalBus(kADC.ID),
-      weLocalBus       => we_LocalBus(kADC.ID),
-      readyLocalBus    => ready_LocalBus(kADC.ID)
+      addrLocalBus      => addr_LocalBus,
+      dataLocalBusIn    => data_LocalBusIn,
+      dataLocalBusOut   => data_LocalBusOut(kADC.ID),
+      reLocalBus        => re_LocalBus(kADC.ID),
+      weLocalBus        => we_LocalBus(kADC.ID),
+      readyLocalBus     => ready_LocalBus(kADC.ID)
     );
+    
+  -- ADC Trigger -----------------------------------------------------------------------
+  int_L1  <= L1_trigger AND not module_busy;
+  
+  u_ATR_Inst : entity mylib.AdcTrigger
+    port map(
+      rst               => user_reset,
+      clkSys            => clk_sys,
+      clkAdc            => clk_adc,
+      DaqGate           => daq_gate,
+      
+      -- ADC Data --
+      AdcData           => adc_data,
+      
+      -- Trigger --
+      L1trig            => L1_trigger,
+        
+      -- Local bus --
+      addrLocalBus      => addr_LocalBus,
+      dataLocalBusIn    => data_LocalBusIn,
+      dataLocalBusOut   => data_LocalBusOut(kATR.ID),
+      reLocalBus        => re_LocalBus(kATR.ID),
+      weLocalBus        => we_LocalBus(kATR.ID),
+      readyLocalBus     => ready_LocalBus(kATR.ID)
+      );
+    
+  -- EVB -------------------------------------------------------------------------------
+  evb_reset    <= user_reset OR evb_reset_from_DCT;
+  
+  u_EVB_Inst : entity mylib.EventBuilder
+    port map(
+      rst               => evb_reset,
+      clk               => clk_sys,    -- later chage to clk_sys
+      clkLink           => clk_sys,
+      EnRM              => '0',
+      
+      -- TRM data --
+      dInTRM            => reg_trm2evb,
+      dOutTRM           => reg_evb2trm,
+      
+      -- Builder bus --
+      addrBuilderBus    => addr_bbus,
+      dataBuilderBusIn  => data_bbus,
+      reBuilderBus      => re_bbus,
+      rvBuilderBus      => rv_bbus,
+      dReadyBuilderBus  => dready_bbus,
+      bindBuilderBus    => bind_bbus,
+      isBoundToBuilder  => isbound_to_builder,
+      
+      -- TSD data --
+      rdToTSD           => daq_data,
+      rvToTSD           => valid_data,
+      emptyToTSD        => empty_data,
+      reFromTSD         => req_data
+      );
 
   -- MIG -------------------------------------------------------------------------------
 
@@ -458,17 +597,16 @@ architecture Behavioral of toplevel is
         CLK                     => clk_sys,
 
         -- data from EVB --
-        rdFromEVB               => X"00",
-        rvFromEVB               => '0',
-        emptyFromEVB            => '1',
-        reToEVB                 => open,
+        rdFromEVB               => daq_data,
+        rvFromEVB               => valid_data,
+        emptyFromEVB            => empty_data,
+        reToEVB                 => req_data,
 
-         -- data to SiTCP
-         isActive                => tcp_isActive(i),
-         afullTx                 => tcp_tx_full(i),
-         weTx                    => tcp_tx_wr(i),
-         wdTx                    => tcp_tx_data(i)
-
+        -- data to SiTCP
+        isActive                => tcp_isActive(i),
+        afullTx                 => tcp_tx_full(i),
+        weTx                    => tcp_tx_wr(i),
+        wdTx                    => tcp_tx_data(i)
         );
   end generate;
 
@@ -560,7 +698,7 @@ architecture Behavioral of toplevel is
         EXT_IP_ADDR       => X"00000000",          --: IP address[31:0]
         EXT_TCP_PORT      => X"0000",              --: TCP port #[15:0]
         EXT_RBCP_PORT     => X"0000",              --: RBCP port #[15:0]
-        PHY_ADDR          => "00000",                                                                                                                                                                      --: PHY-device MIF address[4:0]
+        PHY_ADDR          => "00000",              --: PHY-device MIF address[4:0]
         -- EEPROM
         EEPROM_CS         => EEP_CS,               --: Chip select
         EEPROM_SK         => EEP_SK,               --: Serial data clock

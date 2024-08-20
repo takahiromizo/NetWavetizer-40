@@ -42,14 +42,28 @@ set_false_path -through [get_nets {gen_SiTCP[*].u_SiTCP_Inst/SiTCP/GMII/GMII_TXB
 create_generated_clock -name clk_sys [get_pins u_ClkMan_Inst/inst/mmcm_adv_inst/CLKOUT0]
 create_generated_clock -name clk_indep [get_pins u_ClkMan_Inst/inst/mmcm_adv_inst/CLKOUT1]
 create_generated_clock -name clk_spi [get_pins u_ClkMan_Inst/inst/mmcm_adv_inst/CLKOUT2]
+create_generated_clock -name clk_adc [get_pins u_ClkMan_Inst/inst/mmcm_adv_inst/CLKOUT3]
 
 create_generated_clock -name clk_gmii1 [get_pins u_GtClockDist_Inst/core_clocking_i/mmcm_adv_inst/CLKOUT0]
 create_generated_clock -name clk_gmii2 [get_pins u_GtClockDist_Inst/core_clocking_i/mmcm_adv_inst/CLKOUT1]
 
-set_clock_groups -name async_sys_gmii -asynchronous -group clk_sys -group {clk_gmii1 clk_gmii2} -group clk_indep -group clk_spi
+set_clock_groups -name async_sys_gmii -asynchronous -group clk_sys -group {clk_gmii1 clk_gmii2} -group clk_indep -group clk_spi -group clk_adc
 
 set_false_path -through [get_ports {LED[0]}]
 set_false_path -through [get_ports {LED[1]}]
 set_false_path -through [get_ports {LED[2]}]
 set_false_path -through [get_ports {LED[3]}]
+
+set_false_path -from [get_pins {u_ATR_Inst/discri_period_reg[*]/C}] -to [get_pins {u_ATR_Inst/gen_selfveto[*].u_selfveto/u_selfveto.active_count_reg[*]/R}]
+set_false_path -from [get_pins {u_ATR_Inst/discri_period_reg[*]/C}] -to [get_pins {u_ATR_Inst/gen_selfveto[*].u_selfveto/u_selfveto.veto_count_reg[*]/R}]
+
+
+
+
+
+
+
+
+
+
 

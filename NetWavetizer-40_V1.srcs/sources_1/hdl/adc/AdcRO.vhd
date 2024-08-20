@@ -93,12 +93,11 @@ architecture RTL of AdcRO is
   signal tap_value_in                   : TapBlockArray;
   signal tap_values                     : TapBlockArray;
 
-  attribute mark_debug                  : boolean;
-  attribute mark_debug of is_ready      : signal is enDEBUG;
-  attribute mark_debug of adc_data_out  : signal is enDEBUG;
-  attribute mark_debug of adc_frame_out : signal is enDEBUG;
-
   -- debug -------------------------------------------------------------------------------
+  --attribute mark_debug                  : boolean;
+  --attribute mark_debug of is_ready      : signal is enDEBUG;
+  --attribute mark_debug of adc_data_out  : signal is enDEBUG;
+  --attribute mark_debug of adc_frame_out : signal is enDEBUG;
 
 
 begin

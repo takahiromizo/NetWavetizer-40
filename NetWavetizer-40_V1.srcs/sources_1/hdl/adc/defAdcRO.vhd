@@ -64,7 +64,7 @@ package body defAdcRO is
       return("idelay_0");
     elsif(index = 1) then
       return("idelay_1");
-    elsif(index = 1) then
+    elsif(index = 2) then
       return("idelay_2");
     else
       return("idelay_3");

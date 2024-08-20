@@ -3,7 +3,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 
 entity synchronizer is
   Port (
-    clk         : in STD_LOGIC;
+    clk     : in STD_LOGIC;
     dIn		: in STD_LOGIC;
     dOut	: out  STD_LOGIC
     );
