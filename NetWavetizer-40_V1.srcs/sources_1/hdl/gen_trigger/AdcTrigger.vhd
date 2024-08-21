@@ -36,6 +36,7 @@ end AdcTrigger;
 architecture RTL of AdcTrigger is
   --attribute mark_debug            : string;
 
+  signal daq_gate                 : std_logic;
   -- Discriminator ------------------------------------------------
   signal gate                     : std_logic_vector(kNumADCInputBlock-1 downto 0);
   signal adc_threshold            : AdcDataBlockArray;
@@ -48,7 +49,7 @@ architecture RTL of AdcTrigger is
   signal level1_trigger           : std_logic;
   
   -- Hit count ----------------------------------------------------
-  signal daq_gate                 : std_logic;
+  signal pulse                    : std_logic;
   signal count                    : std_logic_vector(kHitCountBit-1 downto 0);
 
   -- Local bus controll -------------------------------------------
@@ -130,15 +131,16 @@ begin
       dummyOut       => open
       );
 
+  pulse  <= '0' when daq_gate = '0' else level1_trigger;
+  
   u_hitcounter : entity mylib.HitCounter
     port map(
       -- System --
       rst           => rst,
       clk           => clkAdc,
-      DaqGate       => daq_gate,
       
       -- input --
-      Pulse         => level1_trigger,
+      Pulse         => pulse,
       --output --
       HitCount      => count
       );
