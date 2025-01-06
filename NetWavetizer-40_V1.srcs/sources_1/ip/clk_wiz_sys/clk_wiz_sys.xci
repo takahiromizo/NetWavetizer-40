@@ -69,7 +69,7 @@
         "CLK_OUT1_PORT": [ { "value": "clk_sys", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "CLK_OUT2_PORT": [ { "value": "clk_indep_gtx", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "CLK_OUT3_PORT": [ { "value": "clk_spi", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
-        "CLK_OUT4_PORT": [ { "value": "clk_adc_spi", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
+        "CLK_OUT4_PORT": [ { "value": "clk_adc", "value_src": "user", "resolve_type": "user", "usage": "all" } ],
         "CLK_OUT5_PORT": [ { "value": "clk_out5", "resolve_type": "user", "usage": "all" } ],
         "CLK_OUT6_PORT": [ { "value": "clk_out6", "resolve_type": "user", "usage": "all" } ],
         "CLK_OUT7_PORT": [ { "value": "clk_out7", "resolve_type": "user", "usage": "all" } ],
@@ -341,7 +341,7 @@
         "C_OUTCLK_SUM_ROW1": [ { "value": "_clk_sys__125.00000______0.000______50.0______148.538____164.985", "resolve_type": "generated", "usage": "all" } ],
         "C_OUTCLK_SUM_ROW2": [ { "value": "clk_indep_gtx__200.00000______0.000______50.0______136.561____164.985", "resolve_type": "generated", "usage": "all" } ],
         "C_OUTCLK_SUM_ROW3": [ { "value": "_clk_spi__100.00000______0.000______50.0______154.628____164.985", "resolve_type": "generated", "usage": "all" } ],
-        "C_OUTCLK_SUM_ROW4": [ { "value": "clk_adc_spi__25.00000______0.000______50.0______198.902____164.985", "resolve_type": "generated", "usage": "all" } ],
+        "C_OUTCLK_SUM_ROW4": [ { "value": "_clk_adc__25.00000______0.000______50.0______198.902____164.985", "resolve_type": "generated", "usage": "all" } ],
         "C_OUTCLK_SUM_ROW5": [ { "value": "no_CLK_OUT5_output", "resolve_type": "generated", "usage": "all" } ],
         "C_OUTCLK_SUM_ROW6": [ { "value": "no_CLK_OUT6_output", "resolve_type": "generated", "usage": "all" } ],
         "C_OUTCLK_SUM_ROW7": [ { "value": "no_CLK_OUT7_output", "resolve_type": "generated", "usage": "all" } ],
@@ -473,7 +473,7 @@
         "C_CLK_OUT1_PORT": [ { "value": "clk_sys", "resolve_type": "generated", "usage": "all" } ],
         "C_CLK_OUT2_PORT": [ { "value": "clk_indep_gtx", "resolve_type": "generated", "usage": "all" } ],
         "C_CLK_OUT3_PORT": [ { "value": "clk_spi", "resolve_type": "generated", "usage": "all" } ],
-        "C_CLK_OUT4_PORT": [ { "value": "clk_adc_spi", "resolve_type": "generated", "usage": "all" } ],
+        "C_CLK_OUT4_PORT": [ { "value": "clk_adc", "resolve_type": "generated", "usage": "all" } ],
         "C_CLK_OUT5_PORT": [ { "value": "clk_out5", "resolve_type": "generated", "usage": "all" } ],
         "C_CLK_OUT6_PORT": [ { "value": "clk_out6", "resolve_type": "generated", "usage": "all" } ],
         "C_CLK_OUT7_PORT": [ { "value": "clk_out7", "resolve_type": "generated", "usage": "all" } ],
@@ -613,7 +613,7 @@
         "clk_sys": [ { "direction": "out" } ],
         "clk_indep_gtx": [ { "direction": "out" } ],
         "clk_spi": [ { "direction": "out" } ],
-        "clk_adc_spi": [ { "direction": "out" } ],
+        "clk_adc": [ { "direction": "out" } ],
         "locked": [ { "direction": "out" } ]
       },
       "interfaces": {
@@ -718,7 +718,7 @@
             "INSERT_VIP": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "simulation.rtl", "is_ips_inferred": true, "is_static_object": false } ]
           },
           "port_maps": {
-            "CLK_OUT4": [ { "physical_name": "clk_adc_spi" } ]
+            "CLK_OUT4": [ { "physical_name": "clk_adc" } ]
           }
         }
       }
