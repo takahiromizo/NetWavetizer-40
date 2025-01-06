@@ -4,7 +4,7 @@ use ieee.std_logic_unsigned.all;
 
 use mylib.defAdcTrigger.all;
 
-entity HitCounter is
+entity EdgeCounter is
   port(
     -- System --
     rst               : in  std_logic;
@@ -13,31 +13,31 @@ entity HitCounter is
     -- input --
     Pulse             : in  std_logic;
     -- output --
-    HitCount          : out std_logic_vector(kHitCountBit-1 downto 0)
+    EdgeCount          : out std_logic_vector(kEdgeCountBit-1 downto 0)
     );
-end HitCounter;
+end EdgeCounter;
 
-architecture RTL of HitCounter is
+architecture RTL of EdgeCounter is
    
    signal one_shot    : std_logic;
-   signal hit_count   : std_logic_vector(kHitCountBit-1 downto 0);
+   signal edge_count   : std_logic_vector(kEdgeCountBit-1 downto 0);
 
 begin
   -- ==============================================================
   -- body
   -- ==============================================================
   -- signal connection --
-  HitCount    <= hit_count;
+  EdgeCount    <= edge_count;
   
   u_one_shot : entity mylib.EdgeDetector port map (rst => '0', clk => clk, dIn => Pulse, dOut => one_shot);
   
   u_counter  : process(clk, rst)
   begin
     if(rst = '1') then
-      hit_count    <= (others => '0');
+      edge_count    <= (others => '0');
     elsif(clk'event and clk = '1') then
       if(one_shot = '1') then
-        hit_count  <= hit_count + 1;
+        edge_count  <= edge_count + 1;
       end if;
     end if;
   end process;

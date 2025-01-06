@@ -297,3 +297,15 @@ set_property DIFF_TERM true [get_ports {ADC_OUT_P[*]}]
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+

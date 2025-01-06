@@ -52,6 +52,7 @@ package defAD9637Adc is
  constant kNumTapBit          : integer := 5;
  constant kNumFrame           : integer := 1;
 
+
  subtype AdcDataType     is std_logic_vector(kNumAdcBit-1 downto 0);
  subtype FcoDataType     is std_logic_vector(kNumAdcBit-1 downto 0);
  subtype AdcDataSubType  is std_logic_vector(kNumSerdesBit-1 downto 0);

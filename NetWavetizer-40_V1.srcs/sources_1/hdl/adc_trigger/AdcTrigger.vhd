@@ -21,7 +21,8 @@ entity AdcTrigger is
     AdcData         : in  std_logic_vector(kNumAdcBit*kNumAdcInputBlock-1 downto 0);
     
     -- Level 1 trigger --
-    L1Trig          : out std_logic;
+    cStop           : out std_logic;
+    TriggerNumber   : out std_logic_vector(kTrgCountBit-1 downto 0);
     
     -- Local bus --
     addrLocalBus    : in  LocalAddressType;
@@ -46,17 +47,18 @@ architecture RTL of AdcTrigger is
   
   -- Trigger (common stop) ----------------------------------------
   signal pre_delay_trigger        : std_logic;
-  signal level1_trigger           : std_logic;
+  signal trigger_delay            : std_logic;
+  signal trigger_sync             : std_logic;
+  signal oneshot_pulse            : std_logic;
   
   -- Hit count ----------------------------------------------------
-  signal pulse                    : std_logic;
-  signal count                    : std_logic_vector(kHitCountBit-1 downto 0);
+  signal trg_count                : std_logic_vector(kTrgCountBit-1 downto 0);
 
   -- Local bus controll -------------------------------------------
   signal state_lbus               : BusProcessType;
   signal sel_ch                   : std_logic_vector(4 downto 0);
   signal veto_period              : std_logic_vector(kWidthVETO-1 downto 0);
-  signal trigger_delay            : std_logic_vector(kWidthTriggerDelay-1 downto 0);
+  signal num_delay                : std_logic_vector(kWidthTriggerDelay-1 downto 0);
   signal discri_period            : std_logic_vector(kWidthDiscriPeriod-1 downto 0);
   signal hit_count                : std_logic_vector(4 downto 0);
   signal active_ch                : std_logic_vector(kNumAdcInputBlock-1 downto 0);
@@ -71,8 +73,9 @@ begin
   -- body
   -- ==============================================================
 
-  L1Trig          <= '0' when daq_gate = '0' else level1_trigger;
+  cStop           <= '0' when daq_gate = '0' else oneshot_pulse;
   daq_gate        <= DaqGate;
+  TriggerNumber   <= trg_count;
   
   gen_discri : for i in 0 to kNumADCInputBlock-1 generate
   begin
@@ -126,23 +129,24 @@ begin
     port map(
       clk            => clkAdc,
       sigIn          => pre_delay_trigger,
-      NumDelay       => trigger_delay,
-      delayOut       => level1_trigger,
+      NumDelay       => num_delay,
+      delayOut       => trigger_delay,
       dummyOut       => open
       );
-
-  pulse  <= '0' when daq_gate = '0' else level1_trigger;
+      
+  u_Sync         : entity mylib.synchronizer port map(clk => clkAdc, dIn => trigger_delay, dOut => trigger_sync);
+  u_OneShot      : entity mylib.EdgeDetector port map(rst => '0', clk => clkAdc, dIn => trigger_sync, dOut => oneshot_pulse);
   
-  u_hitcounter : entity mylib.HitCounter
+  u_trgcounter : entity mylib.EdgeCounter
     port map(
       -- System --
       rst           => rst,
       clk           => clkAdc,
       
       -- input --
-      Pulse         => pulse,
+      Pulse         => trigger_delay,
       --output --
-      HitCount      => count
+      EdgeCount     => trg_count
       );
   
   
@@ -155,7 +159,7 @@ begin
       sel_ch               <= (others => '0');
       adc_threshold        <= (others => "000000000000");
       veto_period          <= x"0c8";                      -- 200 clock (default)
-      trigger_delay        <= x"3e8";                      -- 1000 clock(default)
+      num_delay            <= x"3e8";                      -- 1000 clock(default)
       discri_period        <= x"064";                      -- 100 clock (default)
       active_ch            <= (others => '0');
       hit_count            <= (others => '0');
@@ -201,9 +205,9 @@ begin
             
             when kTriggerDelay(kNonMultiByte'range) =>
               if(addrLocalBus(kMultiByte'range) = k1stbyte) then
-                trigger_delay(7 downto 0)                     <= dataLocalBusIn;
+                num_delay(7 downto 0)                         <= dataLocalBusIn;
               elsif(addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                trigger_delay(kWidthTriggerDelay-1 downto 8)  <= dataLocalBusIn(kWidthTriggerDelay-1-8 downto 0);
+                num_delay(kWidthTriggerDelay-1 downto 8)      <= dataLocalBusIn(kWidthTriggerDelay-1-8 downto 0);
               else
               end if;
               
@@ -257,9 +261,9 @@ begin
             
             when kTriggerDelay(kNonMultiByte'range) =>
               if(addrLocalBus(kMultiByte'range) = k1stbyte) then
-                dataLocalBusOut     <= trigger_delay(7 downto 0);
+                dataLocalBusOut     <= num_delay(7 downto 0);
               elsif(addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                dataLocalBusOut     <= "0000" & trigger_delay(kWidthTriggerDelay-1 downto 8);
+                dataLocalBusOut     <= "0000" & num_delay(kWidthTriggerDelay-1 downto 8);
               else
               end if;
               
@@ -288,13 +292,13 @@ begin
             
             when kTotalHit(kNonMultiByte'range) =>
               if(addrLocalBus(kMultiByte'range) = k1stbyte) then
-                dataLocalBusOut         <= count(7 downto 0);
+                dataLocalBusOut         <= trg_count(7 downto 0);
               elsif(addrLocalBus(kMultiByte'range) = k2ndbyte) then
-                dataLocalBusOut         <= count(15 downto 8);
+                dataLocalBusOut         <= trg_count(15 downto 8);
               elsif(addrLocalBus(kMultiByte'range) = k3rdbyte) then
-                dataLocalBusOut         <= count(23 downto 16);
+                dataLocalBusOut         <= trg_count(23 downto 16);
               elsif(addrLocalBus(kMultiByte'range) = k4thbyte) then
-                dataLocalBusOut         <= count(kHitCountBit-1 downto 24);
+                dataLocalBusOut         <= trg_count(kEdgeCountBit-1 downto 24);
               else
               end if;
               

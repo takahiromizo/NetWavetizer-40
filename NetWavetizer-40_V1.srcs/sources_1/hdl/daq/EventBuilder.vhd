@@ -9,12 +9,15 @@ use mylib.defSiTCP.all;
 
 
 entity EventBuilder is
+  generic(
+    kTrgNumberBit     : integer := 32
+    );
   port(
     rst               : in  std_logic;
     clk               : in  std_logic;
     clkLink           : in  std_logic;
     enRM              : in  std_logic;
-    
+
     -- TRM --
     dInTRM            : in  dataTrm2Evb;
     dOutTRM           : out dataEvb2Trm;
@@ -44,7 +47,8 @@ architecture RTL of EventBuilder is
   signal reg_en_rm                     : std_logic;
   
   -- Header --
-  signal self_counter                  : std_logic_vector(kWidthSelfCounter-1 downto 0);  
+  signal self_counter                  : std_logic_vector(kWidthSelfCounter-1 downto 0);
+  signal trigger_number                : std_logic_vector(kTrgNumberBit-1 downto 0);  
   
   -- TRM --
   signal in_trm                        : dataTrm2Evb;
@@ -295,6 +299,7 @@ begin
           out_trm.reFifo       <= '0';
           if(in_trm.rvFifo = '1') then
             reg_level2         <= in_trm.regLevel2;
+            trigger_number     <= in_trm.trgnumber;
             
             reg_tag            <= in_trm.regTag;
             state_evb          <= SetBBusSize;
@@ -348,8 +353,9 @@ begin
         
         when SendHeader3 =>
           we_evbuf             <= '1' AND reg_level2;
-          --din_evbuf            <= X"ff" & reg_en_rm & "000" & reg_tag & self_counter; -- gamma-I don't use reg_en_rm, reg_tag, and self_counter width is changed to 32 bit
-          din_evbuf            <= X"ff" & self_counter;
+          --din_evbuf            <= X"ff" & reg_en_rm & "000" & reg_tag & self_counter; -- gamma-I don't use reg_en_rm, reg_tag, and self_counter width is changed to 24 bit
+          --din_evbuf            <= X"ff" & self_counter;
+          din_evbuf            <= trigger_number;
           bbus_dest            <= kBbADC.ID;
           state_evb            <= FinalizeHeader;
         

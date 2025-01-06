@@ -32,10 +32,11 @@ package defTRM is
   constant kEnRM        : regLeaf := (Index => 11);
   
   -- Trigger sequence
-  constant kWidthTriggerData      : positive := 6;
-  -- 0   : Level2
-  -- 1   : Clear
-  -- 2-5 : TAG
+  constant kWidthTriggerData      : positive := 38;
+  -- 0    : Level2
+  -- 1    : Clear
+  -- 2-5  : TAG
+  -- 6-37 : Trigger number
   constant kIndexLevel2           : integer  := 0;
   constant kIndexClear            : integer  := 1;
   

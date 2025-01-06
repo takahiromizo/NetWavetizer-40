@@ -6,14 +6,15 @@ use mylib.defBCT.all;
 
 package defAdcTrigger is
 
-  constant kNumChBit               : integer := 5;
-  constant kNumThreshBit           : integer := 12;
+  constant kNumChBit               : integer := 5;  -- [bit]
+  constant kTrgCountBit            : integer := 32; -- [bit]
+  constant kNumThreshBit           : integer := 12; -- [bit]
   
 
-  constant kWidthTriggerDelay      : integer := 12; --[bit]
-  constant kWidthDiscriPeriod      : integer := 12; --[bit]
-  constant kHitCountBit            : integer := 32; --[bit]
-  constant kWidthVETO              : integer := 12; --[bit]
+  constant kWidthTriggerDelay      : integer := 12; -- [bit]
+  constant kWidthDiscriPeriod      : integer := 12; -- [bit]
+  constant kEdgeCountBit           : integer := 32; -- [bit]
+  constant kWidthVETO              : integer := 12; -- [bit]
 
   -- Local Address ----------------------------------------------------
   constant kChSelection            : LocalAddressType := x"000"; -- W/R, [4:0],  ch selection to prepare for ADC threshold

@@ -9,7 +9,7 @@ package defToplevel is
   -- Number of MIF blocks --
   constant kNumMIF              : integer:= 2;
 
-  -- AMANEQ specification
+  -- NetWavetizer-40 specification
   constant kNumLED              : integer:= 4;
   constant kNumBitDIP           : integer:= 4;
   constant kNumNIM              : integer:= 2;

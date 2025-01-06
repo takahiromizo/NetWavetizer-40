@@ -5,25 +5,35 @@ use mylib.defSiTCP.all;
 
 entity TCP_sender is
   port(
-    rst 					: in std_logic;
-    clk 					: in std_logic;
+    rst 					: in  std_logic;
+    clk 					: in  std_logic;
 
     -- data from EVB --
-    rdFromEVB		  : in std_logic_vector(kWidthDataTCP-1 downto 0);
-    rvFromEVB		  : in std_logic;
-    emptyFromEVB  : in std_logic;
-    reToEVB		    : out std_logic;
+    rdFromEVB		        : in  std_logic_vector(kWidthDataTCP-1 downto 0);
+    rvFromEVB		        : in  std_logic;
+    emptyFromEVB            : in  std_logic;
+    reToEVB		            : out std_logic;
 
     -- data to SiTCP
-    isActive		  : in std_logic;
-    afullTx		    : in std_logic;
-    weTx		      : out std_logic;
-    wdTx		      : out std_logic_vector(kWidthDataTCP-1 downto 0)
+    isActive		        : in  std_logic;
+    afullTx		            : in  std_logic;
+    weTx		            : out std_logic;
+    wdTx		            : out std_logic_vector(kWidthDataTCP-1 downto 0)
 
     );
 end TCP_sender;
 
 architecture RTL of TCP_sender is
+
+  signal delay_afull                                   : std_logic_vector(7 downto 0);
+  --signal dAfull                                        : std_logic;
+
+  attribute mark_debug : string;
+  --attribute mark_debug of weTx                         : signal is "true";
+  --attribute mark_debug of wdTx                         : signal is "true";
+  --attribute mark_debug of afullTx                      : signal is "true";
+  --attribute mark_debug of dAfull                       : signal is "true";
+  
   -- signal declaration ---------------------------------------------------
 
 -- ================================ body ==================================
@@ -47,6 +57,15 @@ begin
       end if;
     end if;
   end process u_buffer_reader;
+  
+  -- for debug --
+  --dAfull <= delay_afull(7);
+  --u_delay_afull : process(CLK)
+  --begin
+  --  if(CLK'event AND CLK = '1') then
+  --    delay_afull   <= delay_afull(6 downto 0) & afullTx;
+  --  end if;
+  --end process u_delay_afull;
 
 end RTL;
 

@@ -5,6 +5,7 @@ use ieee.numeric_std.all;
 use mylib.defTRM.all;
 use mylib.defEVB.all;
 use mylib.defBCT.all;
+use mylib.defAdcTrigger.all;
 
 entity TriggerManager is
   port(
@@ -39,6 +40,7 @@ entity TriggerManager is
     
     -- module input --
     dInTRM            : in  dataEvb2Trm;
+    TriggerNum        : in  std_logic_vector(kTrgCountBit-1 downto 0);
     
     -- module output --
     triggerToDAQ      : out TrigDownType;
@@ -235,8 +237,9 @@ begin
   
   
   -- Trigger record buffer -------------------------------------------
-  din_trig_record           <= tag_out & clear_delay(kNumL2Delay-1) & level2_delay(kNumL2Delay-1);
+  din_trig_record           <= TriggerNum & tag_out & clear_delay(kNumL2Delay-1) & level2_delay(kNumL2Delay-1);
   dOutTRM.regLevel2         <= dout_trig_record(kIndexLevel2);
+  dOutTRM.trgnumber         <= dout_trig_record(37 downto 6);
   --dOutTRM.regClear          <= fifo_out_l2(kIndexClear);
   dOutTRM.regTag            <= dout_trig_record(5 downto 2);
   dOutTRM.trigReady         <= data_ready;
@@ -256,7 +259,6 @@ begin
       rst           => sync_reset,
       wr_clk        => clk,
       rd_clk        => clkSys,
-      --rd_clk        => clk,
       din           => din_trig_record,
       wr_en         => level2_detect_delay(kNumL2Delay-1),
       rd_en         => dInTRM.reFifo,

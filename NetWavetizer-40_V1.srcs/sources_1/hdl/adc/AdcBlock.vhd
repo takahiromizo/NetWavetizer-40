@@ -574,7 +574,7 @@ begin
           end if;
         
         when ReadRingBuffer =>
-          read_ptr          <= std_logic_vector(unsigned(read_ptr) + 1);
+          read_ptr          <= std_logic_vector(unsigned(read_ptr) + 10);
           coarse_counter    <= std_logic_vector(unsigned(coarse_counter) - 1);
           if(coarse_counter = reg_adc.window_min) then
             re_ringbuf      <= '0';

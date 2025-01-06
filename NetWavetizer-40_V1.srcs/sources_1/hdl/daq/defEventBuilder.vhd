@@ -2,6 +2,7 @@ library ieee, mylib;
 use ieee.std_logic_1164.all;
 
 use mylib.defTRM.all;
+use mylib.defAdcTrigger.all;
 --use mylib.defMTDC.all;
 
 package defEVB is
@@ -13,7 +14,7 @@ package defEVB is
   -- Data structure of NetWavetizer-40
   -- Header1 : Eigen(Magic) word: 0xffffxxxx
   -- Header2 : Data size
-  -- Header3 : Event number
+  -- Header3 : Trigger number
   -- Data
   constant kEigenWord             : std_logic_vector(kWidthDaqWord-1 downto 0) := x"ffff0160"; -- Magic word
   
@@ -27,6 +28,7 @@ package defEVB is
     regLevel2                     : std_logic;
     regTag                        : std_logic_vector(kWidthTAG-1 downto 0);
     trigReady                     : std_logic;
+    trgnumber                     : std_logic_vector(kTrgCountBit-1 downto 0);
   end record;
   
   -- Builder bus definition --

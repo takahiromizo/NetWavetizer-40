@@ -156,7 +156,7 @@ begin
 
   core_gt_common_i : gig_ethernet_pcs_pma_gt_common
     port map(
-      GTREFCLK0_IN              => gtrefclk_i ,
+      GTREFCLK0_IN              => gtrefclk_i,
       GTREFCLK0_BUFG_IN         => gtrefclk_bufg_i,
       PLL0LOCKDETCLK_IN         => clkIndep,
       PLL0OUTCLK_OUT            => clkPLL0,
